@@ -158,7 +158,6 @@ class ThreeJSContainer {
         groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
         this.world.addBody(groundBody);
 
-        // cannon-esに中空円筒の壁がないため、短い箱を円周状に並べる。
         for (let i = 0; i < 48; i++) {
             const angle = (i / 48) * Math.PI * 2;
             const body = new CANNON.Body({ mass: 0 });
@@ -183,7 +182,6 @@ class ThreeJSContainer {
         const mat = this.addMesh(new THREE.BoxGeometry(2.1, 0.1, 1.1), this.material(0xe9c4a1), new THREE.Vector3(0, 0.08, 2.05), group);
         mat.rotation.y = 0;
 
-        // 猫ハウス全体を単純な静止Boxとして扱う。
         this.addStaticBox(new CANNON.Vec3(1.65, 1.75, 1.4), new CANNON.Vec3(-5.8, 1.75, -3.2), 0.35);
     };
 
@@ -206,7 +204,6 @@ class ThreeJSContainer {
         this.addMesh(new THREE.CylinderGeometry(0.025, 0.025, 1.2, 8), this.material(0x765843), new THREE.Vector3(0.65, 2.33, 0), group);
         this.addMesh(new THREE.SphereGeometry(0.22, 18, 12), this.material(0xe9a5ae), new THREE.Vector3(0.65, 1.72, 0), group);
 
-        // 土台と柱をまとめた静止Box。猫がキャットタワーを通り抜けないようにする。
         this.addStaticBox(new CANNON.Vec3(2.05, 2.35, 2.05), new CANNON.Vec3(5.4, 2.35, -3.7));
     };
 
@@ -222,7 +219,6 @@ class ThreeJSContainer {
             ring.rotation.x = Math.PI / 2;
         }
 
-        // 横倒しのドラム缶状トンネルを、横長の静止Boxで近似する。
         this.addStaticBox(new CANNON.Vec3(1.75, 1.05, 1.05), new CANNON.Vec3(4.6, 1.05, 3.3));
     };
 
@@ -250,7 +246,6 @@ class ThreeJSContainer {
         arm.rotation.z = Math.PI / 2;
         this.addMesh(new THREE.SphereGeometry(0.16, 16, 10), baseMaterial, new THREE.Vector3(1.34, 3.48, 0), group);
 
-        // 支点は固定Body、おもちゃは動的Bodyとして距離制約で結ぶ。
         this.pendulumAnchor.set(-5.56, 3.45, 2.0);
         const anchorBody = new CANNON.Body({ mass: 0 });
         anchorBody.position.set(this.pendulumAnchor.x, this.pendulumAnchor.y, this.pendulumAnchor.z);
@@ -269,7 +264,6 @@ class ThreeJSContainer {
             linearDamping: 0.015,
             angularDamping: 0.08,
         });
-        // 斜め上を初期位置にすることで、重力だけで揺れ始める。
         this.pendulumBody.position.set(-7.11, 2.55, 2.0);
         this.world.addBody(this.pendulumBody);
         this.world.addConstraint(new CANNON.DistanceConstraint(anchorBody, this.pendulumBody, 1.8, 1e6));
@@ -332,7 +326,6 @@ class ThreeJSContainer {
         const stripeFur = this.material(0x5d5b5a);
         const eyeRim = this.material(0x393534);
 
-        // 参考画像の短い脚と、丸くふっくらした長毛の胴体。
         const body = this.addMesh(new THREE.SphereGeometry(1.08, 32, 20), silverFur, new THREE.Vector3(0, 0.88, -0.18), cat);
         body.scale.set(0.98, 0.76, 1.5);
         const chest = this.addMesh(new THREE.SphereGeometry(0.63, 24, 16), lightFur, new THREE.Vector3(0, 1.03, 0.91), cat);
@@ -346,7 +339,6 @@ class ThreeJSContainer {
         muzzleRight.position.x = 0.2;
         cat.add(muzzleRight);
 
-        // 外向きに反った耳を、丸い耳本体と小さな耳先で表現。
         for (const x of [-0.58, 0.58]) {
             const ear = this.addMesh(new THREE.SphereGeometry(0.29, 18, 12), silverFur, new THREE.Vector3(x, 2.67, 0.69), cat);
             ear.scale.set(0.85, 1.05, 0.55);
@@ -355,7 +347,6 @@ class ThreeJSContainer {
             curledTip.rotation.set(Math.PI / 2, 0, x < 0 ? 0.55 : -0.55);
         }
 
-        // 大きな青緑色の目。外側に濃い縁を置き、子猫らしい表情にする。
         for (const x of [-0.34, 0.34]) {
             const rim = this.addMesh(new THREE.SphereGeometry(0.18, 20, 14), eyeRim, new THREE.Vector3(x, 2.14, 1.48), cat);
             rim.scale.set(1, 1.08, 0.34);
@@ -369,7 +360,6 @@ class ThreeJSContainer {
         nose.rotation.x = Math.PI / 2;
         nose.rotation.z = Math.PI;
 
-        // 額と頬の縞模様。
         for (const x of [-0.28, 0, 0.28]) {
             const foreheadStripe = this.addMesh(new THREE.BoxGeometry(0.1, 0.42, 0.045), stripeFur, new THREE.Vector3(x, 2.46, 1.47 - Math.abs(x) * 0.18), cat);
             foreheadStripe.rotation.z = -x * 0.9;
@@ -381,14 +371,12 @@ class ThreeJSContainer {
             }
         }
 
-        // 白い足先を持つ短い四肢。
         for (const [x, z] of [[-0.56, 0.78], [0.56, 0.78], [-0.64, -0.82], [0.64, -0.82]] as const) {
             this.addMesh(new THREE.CylinderGeometry(0.22, 0.25, 0.62, 16), silverFur, new THREE.Vector3(x, 0.48, z), cat);
             const paw = this.addMesh(new THREE.SphereGeometry(0.27, 18, 12), lightFur, new THREE.Vector3(x, 0.2, z + 0.09), cat);
             paw.scale.set(1.12, 0.62, 1.35);
         }
 
-        // 重なり合う球を使い、背中から上へ連続するふさふさした尾にする。
         const tailParts = [
             [-0.58, 0.82, -1.35, 0.34],
             [-0.82, 1.12, -1.48, 0.33],
