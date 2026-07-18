@@ -1,4 +1,5 @@
-// 24FI092 長谷川凜々
+// 24FI092 長谷川晃巳
+// 最終課題「キンカローのまあるい猫部屋」完成版
 
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
@@ -158,6 +159,7 @@ class ThreeJSContainer {
         groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
         this.world.addBody(groundBody);
 
+        // cannon-esに中空円筒の壁がないため、短い箱を円周状に並べる。
         for (let i = 0; i < 48; i++) {
             const angle = (i / 48) * Math.PI * 2;
             const body = new CANNON.Body({ mass: 0 });
@@ -205,6 +207,7 @@ class ThreeJSContainer {
         this.addMesh(new THREE.CylinderGeometry(0.025, 0.025, 1.2, 8), this.material(0x765843), new THREE.Vector3(0.65, 2.33, 0), group);
         this.addMesh(new THREE.SphereGeometry(0.22, 18, 12), this.material(0xe9a5ae), new THREE.Vector3(0.65, 1.72, 0), group);
 
+        // 土台と柱をまとめた静止Box。猫がキャットタワーを通り抜けないようにする。
         this.addStaticBox(new CANNON.Vec3(2.05, 2.35, 2.05), new CANNON.Vec3(5.4, 2.35, -3.7));
     };
 
@@ -220,6 +223,7 @@ class ThreeJSContainer {
             ring.rotation.x = Math.PI / 2;
         }
 
+        // 横倒しのドラム缶状トンネルを、横長の静止Boxで近似する。
         this.addStaticBox(new CANNON.Vec3(1.75, 1.05, 1.05), new CANNON.Vec3(4.6, 1.05, 3.3));
     };
 
@@ -247,6 +251,7 @@ class ThreeJSContainer {
         arm.rotation.z = Math.PI / 2;
         this.addMesh(new THREE.SphereGeometry(0.16, 16, 10), baseMaterial, new THREE.Vector3(1.34, 3.48, 0), group);
 
+        // 支点は固定Body、おもちゃは動的Bodyとして距離制約で結ぶ。
         this.pendulumAnchor.set(-5.56, 3.45, 2.0);
         const anchorBody = new CANNON.Body({ mass: 0 });
         anchorBody.position.set(this.pendulumAnchor.x, this.pendulumAnchor.y, this.pendulumAnchor.z);
@@ -265,7 +270,7 @@ class ThreeJSContainer {
             linearDamping: 0.015,
             angularDamping: 0.08,
         });
-        
+        // 斜め上を初期位置にすることで、重力だけで揺れ始める。
         this.pendulumBody.position.set(-7.11, 2.55, 2.0);
         this.world.addBody(this.pendulumBody);
         this.world.addConstraint(new CANNON.DistanceConstraint(anchorBody, this.pendulumBody, 1.8, 1e6));
