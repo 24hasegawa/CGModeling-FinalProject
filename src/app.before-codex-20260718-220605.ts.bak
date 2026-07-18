@@ -1,0 +1,201 @@
+//24FI092 長谷川晃巳
+
+import * as THREE from "three";
+import * as CANNON from "cannon-es";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+class ThreeJSContainer {
+    private scene!: THREE.Scene;
+    private world!: CANNON.World;
+    private readonly clock = new THREE.Clock();
+    private readonly keys = new Set<string>();
+
+    private readonly cubeMeshes: THREE.Mesh[] = [];
+    private readonly cubeBodies: CANNON.Body[] = [];
+    private readonly wheelMeshes: THREE.Mesh[] = [];
+    private readonly wheelBodies: CANNON.Body[] = [];
+    private carMesh!: THREE.Mesh;
+    private carBody!: CANNON.Body;
+    private vehicle!: CANNON.RigidVehicle;
+
+    public createRendererDOM = (width: number, height: number, cameraPos: THREE.Vector3) => {
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(new THREE.Color(0x0495ed));
+        renderer.shadowMap.enabled = true;
+
+        const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+        camera.position.copy(cameraPos);
+        camera.lookAt(0, 0, 0);
+        const orbitControls = new OrbitControls(camera, renderer.domElement);
+
+        this.createScene();
+        document.addEventListener("keydown", this.onKeyDown);
+        document.addEventListener("keyup", this.onKeyUp);
+
+        const render: FrameRequestCallback = () => {
+            this.updatePhysics();
+            orbitControls.update();
+            renderer.render(this.scene, camera);
+            requestAnimationFrame(render);
+        };
+        requestAnimationFrame(render);
+
+        renderer.domElement.style.cssFloat = "left";
+        renderer.domElement.style.margin = "10px";
+        return renderer.domElement;
+    };
+
+    private createScene = () => {
+        this.scene = new THREE.Scene();
+        this.scene.add(new THREE.GridHelper(20, 20));
+        this.scene.add(new THREE.AxesHelper(5));
+
+        const light = new THREE.DirectionalLight(0xffffff, 2.5);
+        light.position.set(5, 8, 4);
+        light.castShadow = true;
+        this.scene.add(light, new THREE.AmbientLight(0xffffff, 0.45));
+
+        this.world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+        this.world.defaultContactMaterial.friction = 0.35;
+        this.world.defaultContactMaterial.restitution = 0.05;
+
+        this.addGround();
+        this.addDominoCircle();
+        this.addCar();
+    };
+
+    private addGround = () => {
+        const groundMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(24, 24),
+            new THREE.MeshPhongMaterial({ color: 0x808080, side: THREE.DoubleSide }),
+        );
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.receiveShadow = true;
+        this.scene.add(groundMesh);
+
+        const groundBody = new CANNON.Body({ mass: 0 });
+        groundBody.addShape(new CANNON.Plane());
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        this.world.addBody(groundBody);
+    };
+
+    private addDominoCircle = () => {
+        const count = 40;
+        const radius = 5;
+        const geometry = new THREE.BoxGeometry(0.20, 2.5, 0.9);
+        const material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+        const shape = new CANNON.Box(new CANNON.Vec3(0.10, 1.25, 0.45));
+
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2;
+            const x = radius * Math.cos(angle);
+            const z = radius * Math.sin(angle);
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, 1.25, z);
+            mesh.rotation.y = Math.PI / 2 - angle;
+            mesh.castShadow = true;
+            this.scene.add(mesh);
+
+            const body = new CANNON.Body({ mass: 0.5, shape });
+            body.position.set(x, 1.25, z);
+            body.quaternion.setFromEuler(0, Math.PI / 2 - angle, 0);
+            this.world.addBody(body);
+
+            this.cubeMeshes.push(mesh);
+            this.cubeBodies.push(body);
+        }
+
+        const firstDomino = this.cubeBodies[0];
+        firstDomino.applyImpulse(
+            new CANNON.Vec3(0, 0, 1.5),
+            new CANNON.Vec3(0, 1.15, 0),
+        );
+    };
+
+    private addCar = () => {
+        this.carBody = new CANNON.Body({ mass: 5 });
+        this.carBody.addShape(new CANNON.Box(new CANNON.Vec3(1.1, 0.2, 0.7)));
+        this.carBody.position.set(0, 0.55, 0);
+        this.vehicle = new CANNON.RigidVehicle({ chassisBody: this.carBody });
+
+        this.carMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(2.2, 0.4, 1.4),
+            new THREE.MeshLambertMaterial({ color: 0x2f6fed }),
+        );
+        this.carMesh.castShadow = true;
+        this.scene.add(this.carMesh);
+
+        const wheelGeometry = new THREE.CylinderGeometry(0.28, 0.28, 0.2, 16);
+        wheelGeometry.rotateZ(Math.PI / 2);
+        const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 });
+
+        for (const [x, z] of [[-1.18, -0.45], [1.18, -0.45], [-1.18, 0.45], [1.18, 0.45]]) {
+            const wheelBody = new CANNON.Body({ mass: 1 });
+            wheelBody.addShape(new CANNON.Sphere(0.28));
+            wheelBody.angularDamping = 0.4;
+            this.vehicle.addWheel({ body: wheelBody, position: new CANNON.Vec3(x, -0.25, z) });
+
+            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheel.castShadow = true;
+            this.scene.add(wheel);
+
+            this.wheelBodies.push(wheelBody);
+            this.wheelMeshes.push(wheel);
+        }
+
+        this.vehicle.addToWorld(this.world);
+    };
+
+    private onKeyDown = (event: KeyboardEvent) => {
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.preventDefault();
+            this.keys.add(event.key);
+        }
+    };
+
+    private onKeyUp = (event: KeyboardEvent) => this.keys.delete(event.key);
+
+    private updatePhysics = () => {
+        const delta = Math.min(this.clock.getDelta(), 0.1);
+
+        const force = this.keys.has("ArrowUp") ? 20 : this.keys.has("ArrowDown") ? -12 : 0;
+        const steering = this.keys.has("ArrowLeft")
+            ? THREE.MathUtils.degToRad(25)
+            : this.keys.has("ArrowRight")
+            ? THREE.MathUtils.degToRad(-25)
+            : 0;
+
+        this.vehicle.setWheelForce(force, 0);
+        this.vehicle.setWheelForce(force, 1);
+        this.vehicle.setSteeringValue(steering, 0);
+        this.vehicle.setSteeringValue(steering, 1);
+
+        this.world.fixedStep(1 / 60, delta, 3);
+
+        this.copyTransform(this.carMesh, this.carBody);
+
+        for (let i = 0; i < this.wheelMeshes.length; i++) {
+            this.copyTransform(this.wheelMeshes[i], this.wheelBodies[i]);
+        }
+
+        for (let i = 0; i < this.cubeMeshes.length; i++) {
+            this.copyTransform(this.cubeMeshes[i], this.cubeBodies[i]);
+        }
+    };
+
+    private copyTransform = (mesh: THREE.Mesh, body: CANNON.Body) => {
+        mesh.position.set(body.position.x, body.position.y, body.position.z);
+        mesh.quaternion.set(body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w);
+    };
+}
+
+window.addEventListener("DOMContentLoaded", init);
+
+function init() {
+    const container = new ThreeJSContainer();
+    const viewport = container.createRendererDOM(640, 480, new THREE.Vector3(10, 10, 12));
+    document.body.appendChild(viewport);
+}
