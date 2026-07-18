@@ -1,5 +1,4 @@
 // 24FI092 長谷川晃巳
-// 最終課題「キンカローのまあるい猫部屋」完成版
 
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
